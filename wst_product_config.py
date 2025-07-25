@@ -421,5 +421,78 @@ Generate a concise executive summary based strictly on the structured WST releas
         process=Process.sequential,
         verbose=False
     )
+  # 4️⃣ Visualization Agent
+    viz_writer = Agent(
+        role="Data Visualization Assistant",
+        goal="Generate valid Chart.js JSON configurations from structured WST metrics",
+        backstory="Expert at converting structured WST release metrics into interactive chart specifications using Chart.js.",
+        llm=llm,
+        verbose=False,
+        memory=True,
+    )
 
-    return data_crew, report_crew, brief_summary_crew
+    VIZ_PROMPT = """
+    You are a visualization expert. Convert the following structured WST release metrics JSON into a valid configuration for exactly 4 charts using Chart.js.
+
+    Instructions:
+    - Output **pure JSON only** (no markdown, no explanations, no code blocks).
+    - Output format:
+      {
+        "charts": [
+          {
+            "type": "bar" | "line",
+            "data": {
+              "labels": [...],
+              "datasets": [
+                {
+                  "label": "...",
+                  "data": [...],
+                  "fill": false
+                }
+              ]
+            },
+            "options": {
+              "responsive": true,
+              "plugins": {
+                "legend": { "position": "top" },
+                "title": { "display": true, "text": "..." }
+              },
+              "scales": {
+                "x": { "beginAtZero": true },
+                "y": { "beginAtZero": true }
+              }
+            }
+          },
+          ...
+        ]
+      }
+
+    Guidelines:
+    - Chart 1: Total Release Epics across versions (bar chart)
+    - Chart 2: Release PIRs Total across versions (bar or line)
+    - Chart 3: System / Solution Test Metrics (ATL) – total vs open (line chart)
+    - Chart 4: Unit Test Coverage – previous vs current (line chart)
+
+    Use only values from the input. If data is missing or null, skip that entry.
+
+    Here is the structured metrics JSON:
+    {structured_data}
+    """
+
+
+    viz_task = Task(
+    description=VIZ_PROMPT.format(structured_data=json.dumps(shared_state.metrics, indent=2)),
+    agent=viz_writer,
+    context=[structurer_task],
+    expected_output="Chart.js config JSON",
+    callback=lambda output: shared_state.__setattr__("visualization_json", extract_json_from_output(output.raw))
+    )
+
+    viz_crew = Crew(
+    agents=[viz_writer],
+    tasks=[viz_task],
+    process=Process.sequential,
+    verbose=False
+    )
+
+    return data_crew, report_crew, brief_summary_crew, viz_crew
