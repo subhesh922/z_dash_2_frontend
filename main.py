@@ -100,7 +100,7 @@ async def analyze_markdown(
 
         # Step 6: Route to crew setup
         if product == "WST":
-            data_crew, report_crew, brief_crew = setup_crew_wst(harmonized_text, versions)
+            data_crew, report_crew, brief_crew, viz_crew = setup_crew_wst(harmonized_text, versions)
         else:
             raise HTTPException(status_code=400, detail=f"Unsupported product type: {product}")
 
@@ -110,6 +110,7 @@ async def analyze_markdown(
         # Step 8: Run Report and Brief Crews in parallel
         report_crew.kickoff()
         brief_crew.kickoff()
+        viz_crew.kickoff()
 
         # Step 9: Evaluate generated report
         evaluation_result = evaluate_with_llm_judge(
@@ -118,7 +119,8 @@ async def analyze_markdown(
         )
 
         # Step 10: Generate visualization data
-        visualization_json = visualize(shared_state.metrics)
+        # visualization_json = visualize(shared_state.metrics)
+        visualization_json = shared_state.visualization_json
 
         # Step 11: Return structured response
         return MultiFileAnalysisResponse(
